@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('version_ranges', function (Blueprint $table) {
+        Schema::create('affected_versions', function (Blueprint $table) {
             $table->id();
             $table->foreignId('vulnerability_id')->constrained()->cascadeOnDelete();
             $table->string('version_start')->nullable();
@@ -27,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('version_ranges');
+        Schema::dropIfExists('affected_versions');
     }
 };
