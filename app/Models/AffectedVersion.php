@@ -22,5 +22,12 @@ use Illuminate\Support\Carbon;
 
 class AffectedVersion extends Model
 {
-
+    use HasFactory;
+    protected function casts(): array
+    {
+        return [
+            'version_start_including' => 'boolean',
+            'version_end_including' => 'boolean',
+        ];
+    }
 }
