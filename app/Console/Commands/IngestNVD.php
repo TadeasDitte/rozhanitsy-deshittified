@@ -2,19 +2,101 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Source;
+use App\Models\SyncState;
+use App\Services\Ingestion\IngestRecordWriter;
+use Carbon\Carbon;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Http;
 
-#[Signature('ingest:nvd')]
-#[Description('Pull CVEs from NVD API')]
-class IngestNVD extends Command
+#[Signature('ingest:nvd {--full : Ignore sync_states and pull the full 120-day window}')]
+#[Description('Pull CVEs from NVD API 2.0 into ingest_records')]
+class IngestNvd extends Command
 {
-    /**
-     * Execute the console command.
-     */
-    public function handle()
+    private const PAGE_SIZE = 2000;
+    private const MAX_DATE_RANGE_DAYS = 120;
+
+    public function __construct(private IngestRecordWriter $writer)
     {
-        //
+        parent::__construct();
+    }
+
+    public function handle(): int
+    {
+        $source = Source::where('slug', 'nvd')->firstOrFail();
+        $baseUrl = rtrim($source->ingest_base_url, '/');
+        $syncState = SyncState::firstOrCreate(['source_id' => $source->id]);
+        $apiKey = config('services.nvd.api_key');
+
+        [$start, $end] = $this->resolveWindow($syncState, (bool) $this->option('full'));
+        $this->info("Syncing NVD {$start} → {$end}");
+
+        $startIndex = 0;
+        $total = null;
+        $processed = 0;
+        $bar = null;
+
+        do {
+            $response = Http::withHeaders(array_filter(['apiKey' => $apiKey]))
+                ->get($baseUrl, [
+                    'lastModStartDate' => $start,
+                    'lastModEndDate' => $end,
+                    'resultsPerPage' => self::PAGE_SIZE,
+                    'startIndex' => $startIndex,
+                ]);
+
+            if ($response->status() === 429) {
+                $this->warn('Rate limited — backing off 30s');
+                sleep(30);
+                continue;
+            }
+            $response->throw();
+
+            $data = $response->json();
+            $total ??= $data['totalResults'];
+
+            if ($bar === null) {
+                $bar = $this->output->createProgressBar($total);
+            }
+
+            foreach ($data['vulnerabilities'] ?? [] as $vuln) {
+                $this->writer->upsert($source->id, $vuln['cve']['id'], $vuln);
+                $processed++;
+                $bar->advance();
+            }
+
+            $startIndex += self::PAGE_SIZE;
+            sleep($apiKey ? 1 : 6);
+        } while ($startIndex < $total);
+
+        $bar?->finish();
+        $this->newLine();
+
+        $syncState->update([
+            'cursor' => ['last_mod_end_date' => $end],
+            'last_synced_at' => now(),
+        ]);
+
+        $this->info("Done, {$processed} records written.");
+        return self::SUCCESS;
+    }
+
+    private function resolveWindow(SyncState $syncState, bool $full): array
+    {
+        $end = Carbon::now('UTC');
+        $lastCursor = $syncState->cursor['last_mod_end_date'] ?? null;
+
+        if ($full || !$lastCursor) {
+            $start = $end->copy()->subDays(self::MAX_DATE_RANGE_DAYS);
+        } else {
+            $start = Carbon::parse($lastCursor);
+            if ($start->diffInDays($end) > self::MAX_DATE_RANGE_DAYS) {
+                $start = $end->copy()->subDays(self::MAX_DATE_RANGE_DAYS);
+            }
+        }
+
+        return [$start->format('Y-m-d\TH:i:s.000\Z'), $end->format('Y-m-d\TH:i:s.000\Z')];
     }
 }
