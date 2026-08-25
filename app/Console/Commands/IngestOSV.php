@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Source;
+use App\Models\SyncState;
 use App\Services\Ingestion\IngestRecordWriter;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
@@ -65,6 +66,14 @@ class IngestOsv extends Command
         unlink($zipPath);
         array_map('unlink', $files);
         rmdir($extractPath);
+
+        SyncState::updateOrCreate(
+            ['source_id' => $source->id],
+            [
+                'cursor' => ['last_modified' => now()->toIso8601ZuluString()],
+                'last_synced_at' => now(),
+            ]
+        );
 
         $this->info("Done, {$written} records written.");
         return self::SUCCESS;
