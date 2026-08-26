@@ -6,6 +6,7 @@ use App\Ingestion\Parsers\SourceRecordParser;
 use App\Models\IngestRecord;
 use App\Models\ParsedRecord;
 use App\Models\Source;
+use Illuminate\Support\Facades\DB;
 use Throwable;
 
 final class RecordParsingRunner
@@ -39,29 +40,31 @@ final class RecordParsingRunner
                 return;
             }
 
-            ParsedRecord::updateOrCreate(
-                ['ingest_record_id' => $ingestRecord->id],
-                [
-                    'source_id' => $ingestRecord->source_id,
-                    'external_id' => $parsed->externalId,
-                    'aliases' => $parsed->aliases,
-                    'cvss_score' => $parsed->cvssScore,
-                    'cvss_vector' => $parsed->cvssVector,
-                    'cvss_version' => $parsed->cvssVersion,
-                    'cvss_severity' => $parsed->cvssSeverity,
-                    'description' => $parsed->description,
-                    'published_at' => $parsed->publishedAt,
-                    'last_modified_at' => $parsed->lastModifiedAt,
-                    'weaknesses' => $parsed->weaknesses,
-                    'references' => $parsed->references,
-                    'status' => $parsed->status,
-                    'known_exploited' => $parsed->knownExploited,
-                    'raw_ranges' => $parsed->rawRanges,
-                    'resolved_at' => null,
-                ]
-            );
+            DB::transaction(function () use ($ingestRecord, $parsed) {
+                ParsedRecord::updateOrCreate(
+                    ['ingest_record_id' => $ingestRecord->id],
+                    [
+                        'source_id' => $ingestRecord->source_id,
+                        'external_id' => $parsed->externalId,
+                        'aliases' => $parsed->aliases,
+                        'cvss_score' => $parsed->cvssScore,
+                        'cvss_vector' => $parsed->cvssVector,
+                        'cvss_version' => $parsed->cvssVersion,
+                        'cvss_severity' => $parsed->cvssSeverity,
+                        'description' => $parsed->description,
+                        'published_at' => $parsed->publishedAt,
+                        'last_modified_at' => $parsed->lastModifiedAt,
+                        'weaknesses' => $parsed->weaknesses,
+                        'references' => $parsed->references,
+                        'status' => $parsed->status,
+                        'known_exploited' => $parsed->knownExploited,
+                        'raw_ranges' => $parsed->rawRanges,
+                        'resolved_at' => null,
+                    ]
+                );
 
-            $ingestRecord->update(['processing_status' => 'processed', 'processed_at' => now()]);
+                $ingestRecord->update(['processing_status' => 'processed', 'processed_at' => now()]);
+            });
         } catch (Throwable $e) {
             $ingestRecord->update([
                 'processing_status' => 'failed',
