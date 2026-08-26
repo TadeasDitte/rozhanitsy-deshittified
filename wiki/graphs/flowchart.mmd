@@ -1,0 +1,23 @@
+flowchart LR
+    NVD ==> I[ingest_records]
+    OSV ==> I 
+    
+    GHA[Github Advisory Database] --> OSV
+    PyPI[PyPI Advisory Database] --> OSV
+    RUST[Rust Advisory Database] --> OSV
+    DRUPAL[Drupal Advisory Database] --> OSV
+    GO[Go Vulnerability Database] --> OSV
+    GAD[Global Security Database] --> OSV
+    OSSFuzz --> OSV
+    ROCKY --> OSV
+    ALMA --> OSV
+    HASKELL[Haskell Security Advisories] --> OSV
+    RCON[RConsortium Advisory Database] --> OSV
+    OSSF[OpenSSF Malicious Packages] --> OSV
+    PSFD[Python Software Foundation Database] --> OSV
+    BITNAMI[Bitnami Vulnerability Database] --> OSV
+    HASKELL[Haskell Security Advisory DB] --> OSV
+    UBUNTU --> OSV
+    OPAM --> OSV
+    ERLANG[Erlang Ecosystem Foundation CNA] --> OSV
+    I ==> processing ==> API <==>SVETOVIT
