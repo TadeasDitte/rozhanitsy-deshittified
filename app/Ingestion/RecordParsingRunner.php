@@ -12,14 +12,18 @@ final class RecordParsingRunner
 {
     public function __construct(private readonly SourceRecordParser $parser) {}
 
-    public function run(Source $source): void
+    public function run(Source $source, ?callable $onEach = null): void
     {
         IngestRecord::query()
             ->where('source_id', $source->id)
             ->where('processing_status', 'pending')
-            ->chunkById(500, function ($records) {
+            ->chunkById(500, function ($records) use ($onEach) {
                 foreach ($records as $record) {
                     $this->processOne($record);
+
+                    if ($onEach !== null) {
+                        $onEach();
+                    }
                 }
             });
     }
