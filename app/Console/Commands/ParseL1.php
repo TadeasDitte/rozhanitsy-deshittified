@@ -10,7 +10,7 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
-#[Signature('parse:l1 {source? : source slug, defaults to all}')]
+#[Signature('parse:l1 {source? : source slug, defaults to all} {--retry-failed : requeue failed records before parsing}')]
 #[Description('Run Layer 1 parsing against pending ingest_records')]
 final class ParseL1 extends Command
 {
@@ -26,6 +26,16 @@ final class ParseL1 extends Command
             if ($parser === null) {
                 $this->warn("No parser class found for slug [{$source->slug}], skipping");
                 continue;
+            }
+
+            if ($this->option('retry-failed')) {
+                $requeued = IngestRecord::where('source_id', $source->id)
+                    ->where('processing_status', 'failed')
+                    ->update(['processing_status' => 'pending', 'processing_error' => null]);
+
+                if ($requeued > 0) {
+                    $this->info("Requeued {$requeued} failed records for {$source->slug}");
+                }
             }
 
             $pending = IngestRecord::where('source_id', $source->id)

@@ -24,3 +24,5 @@ checks modified_id.csv and downloads and updates only the modified entries since
 
 `php artisan parse:l1` is the only parser as of now and should be ran after any ingest
 It passes raw data from sources through source specific parsers into a parsed_records table
+
+`--retry-failed` flag does what it says it does
