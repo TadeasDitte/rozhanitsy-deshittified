@@ -19,3 +19,8 @@ Schedule::command('osv:ingest')
     ->withoutOverlapping()
     ->onOneServer()
     ->runInBackground();
+Schedule::command('parse:l1')
+    ->dailyAt('03:00')
+    ->withoutOverlapping()
+    ->onOneServer()
+    ->runInBackground();
