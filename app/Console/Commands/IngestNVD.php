@@ -40,6 +40,8 @@ class IngestNvd extends Command
 
         do {
             $response = Http::withHeaders(array_filter(['apiKey' => $apiKey]))
+                ->timeout(60)
+                ->retry(3, 2000)
                 ->get($baseUrl, [
                     'lastModStartDate' => $start,
                     'lastModEndDate' => $end,
