@@ -18,6 +18,9 @@ class IngestNvd extends Command
     private const PAGE_SIZE = 2000;
     private const MAX_DATE_RANGE_DAYS = 120;
 
+    private const RATE_LIMIT_DELAY_WITH_KEY = 0.6;
+    private const RATE_LIMIT_DELAY_NO_KEY = 6.0;
+
     public function __construct(private IngestRecordWriter $writer)
     {
         parent::__construct();
@@ -70,7 +73,7 @@ class IngestNvd extends Command
             }
 
             $startIndex += self::PAGE_SIZE;
-            sleep($apiKey ? 1 : 6);
+            $this->throttle((bool) $apiKey);
         } while ($startIndex < $total);
 
         $bar?->finish();
@@ -83,6 +86,15 @@ class IngestNvd extends Command
 
         $this->info("Done, {$processed} records written.");
         return self::SUCCESS;
+    }
+
+    private function throttle(bool $hasApiKey): void
+    {
+        $delaySeconds = $hasApiKey
+            ? self::RATE_LIMIT_DELAY_WITH_KEY
+            : self::RATE_LIMIT_DELAY_NO_KEY;
+
+        usleep((int) ($delaySeconds * 1_000_000));
     }
 
     private function resolveWindow(SyncState $syncState, bool $full): array
