@@ -19,3 +19,8 @@ If left unspecified it downloads the root all.zip
 
 And `php artisan ingest:osv-sync`
 checks modified_id.csv and downloads and updates only the modified entries since the last ingest
+
+## Parse
+
+`php artisan parse:l1` is the only parser as of now and should be ran after any ingest
+It passes raw data from sources through source specific parsers into a parsed_records table
