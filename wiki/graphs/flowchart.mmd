@@ -1,5 +1,5 @@
 flowchart LR
-    NVD ==>|ingest:nvd| I[ingest_records]
+    NVD ==>|ingest:nvd| I[(ingest_records)]
     OSV ==>|ingest:osv| I
     
     GHA[Github Advisory Database] --> OSV
@@ -20,5 +20,5 @@ flowchart LR
     UBUNTU --> OSV
     OPAM --> OSV
     ERLANG[Erlang Ecosystem Foundation CNA] --> OSV
-    I ==>|parse:l1| P[parsed_records]
+    I ==>|parse:l1| P[(parsed_records)]
     API <==>SVETOVIT
