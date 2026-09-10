@@ -1,0 +1,204 @@
+Enum ingest_records_processing_status {
+  pending
+  processed
+  failed
+  skipped
+}
+
+Table sources {
+  id bigint [pk, increment]
+  name varchar
+  slug varchar [unique]
+  url varchar
+  ingest_base_url varchar [null]
+  created_at timestamp [null]
+  updated_at timestamp [null]
+}
+
+Table ingest_records {
+  id bigint [pk, increment]
+  source_id bigint [not null]
+  external_id varchar
+  raw_payload jsonb
+  fetched_at timestamp
+  processed_at timestamp [null]
+  processing_status ingest_records_processing_status [default: 'pending']
+  processing_error text [null]
+  created_at timestamp [null]
+  updated_at timestamp [null]
+
+  indexes {
+    (source_id, external_id) [unique]
+    processing_status
+  }
+}
+
+Table sync_states {
+  id bigint [pk, increment]
+  source_id bigint [not null, unique]
+  cursor jsonb [null]
+  last_synced_at timestamp [null]
+  created_at timestamp [null]
+  updated_at timestamp [null]
+}
+
+Table formats {
+  id int [pk, increment]
+  name varchar [unique, not null]
+  version varchar
+}
+
+Table parsed_records {
+  id bigint [pk, increment]
+  ingest_record_id bigint [not null, unique]
+  source_id bigint [not null]
+  external_id varchar
+  aliases jsonb [null]
+  cvss_score "decimal(3,1)" [null]
+  cvss_vector varchar [null]
+  cvss_version varchar [null]
+  cvss_severity varchar [null]
+  description text [null]
+  published_at timestamp [null]
+  last_modified_at timestamp [null]
+  weaknesses jsonb [null]
+  references jsonb [null]
+  status varchar [null]
+  known_exploited boolean [default: false]
+  raw_ranges jsonb
+  resolved_at timestamp [null]
+  created_at timestamp [null]
+  updated_at timestamp [null]
+
+  indexes {
+    (source_id, external_id)
+    resolved_at
+  }
+}
+
+Table trf {
+  id bigint [pk, increment]
+  format_version varchar [default: 'v1']
+  type trf_type [default: 'u']
+  vendor varchar
+  product varchar
+}
+
+Ref: passkeys.user_id > users.id [delete: cascade]
+Ref: ingest_records.source_id > sources.id [delete: cascade]
+Ref: parsed_records.source_id > sources.id [delete: cascade]
+
+Ref: sources.id - sync_states.source_id [delete: cascade]
+Ref: ingest_records.id - parsed_records.ingest_record_id [delete: cascade]
+
+
+// Laravel default
+Table users {
+  id bigint [pk, increment]
+  name varchar
+  email varchar [unique, not null]
+  email_verified_at timestamp [null]
+  password varchar
+  two_factor_secret text [null]
+  two_factor_recovery_codes text [null]
+  two_factor_confirmed_at timestamp [null]
+  remember_token varchar(100) [null]
+  created_at timestamp [null]
+  updated_at timestamp [null]
+}
+
+Table password_reset_tokens {
+  email varchar [pk]
+  token varchar
+  created_at timestamp [null]
+}
+
+Table sessions {
+  id varchar [pk]
+  user_id bigint [null, note: 'indexed, no FK constraint']
+  ip_address varchar(45) [null]
+  user_agent text [null]
+  payload longtext
+  last_activity integer
+
+  indexes {
+    user_id
+    last_activity
+  }
+}
+
+Table cache {
+  key varchar [pk]
+  value mediumtext
+  expiration bigint
+
+  indexes {
+    expiration
+  }
+}
+
+Table cache_locks {
+  key varchar [pk]
+  owner varchar
+  expiration bigint
+
+  indexes {
+    expiration
+  }
+}
+
+Table jobs {
+  id bigint [pk, increment]
+  queue varchar
+  payload longtext
+  attempts "smallint unsigned"
+  reserved_at "integer unsigned" [null]
+  available_at "integer unsigned"
+  created_at "integer unsigned"
+
+  indexes {
+    queue
+  }
+}
+
+Table job_batches {
+  id varchar [pk]
+  name varchar
+  total_jobs integer
+  pending_jobs integer
+  failed_jobs integer
+  failed_job_ids longtext
+  options mediumtext [null]
+  cancelled_at integer [null]
+  created_at integer
+  finished_at integer [null]
+}
+
+Table failed_jobs {
+  id bigint [pk, increment]
+  uuid varchar [unique]
+  connection varchar
+  queue varchar
+  payload longtext
+  exception longtext
+  failed_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (connection, queue, failed_at)
+  }
+}
+
+Table passkeys {
+  id bigint [pk, increment]
+  user_id bigint [not null]
+  name varchar
+  credential_id varchar [unique]
+  credential json
+  last_used_at timestamp [null]
+  created_at timestamp [null]
+  updated_at timestamp [null]
+
+  indexes {
+    user_id
+  }
+}
