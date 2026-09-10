@@ -2,11 +2,17 @@
 
 namespace App\Models;
 
+use Database\Factories\ParsedRecordFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 final class ParsedRecord extends Model
 {
+    /** @use HasFactory<ParsedRecordFactory> */
+    use HasFactory;
+
     protected $guarded = [];
 
     protected function casts(): array
@@ -32,5 +38,13 @@ final class ParsedRecord extends Model
     public function source(): BelongsTo
     {
         return $this->belongsTo(Source::class);
+    }
+
+    /**
+     * @return HasMany<VersionRange, $this>
+     */
+    public function versionRanges(): HasMany
+    {
+        return $this->hasMany(VersionRange::class);
     }
 }
