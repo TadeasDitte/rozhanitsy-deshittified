@@ -3,6 +3,7 @@
 namespace App\Ingestion\Parsers;
 
 use App\Ingestion\ParsedRecordData;
+use App\Ingestion\Support\Cvss;
 use Carbon\Carbon;
 
 final class OSVRecordParser implements SourceRecordParser
@@ -13,12 +14,12 @@ final class OSVRecordParser implements SourceRecordParser
             return null;
         }
 
-        [$vector, $version, $severity] = $this->extractCvss($rawPayload['severity'] ?? []);
+        [$score, $vector, $version, $severity] = $this->extractCvss($rawPayload);
 
         return new ParsedRecordData(
             externalId: $rawPayload['id'],
             aliases: $rawPayload['aliases'] ?? [],
-            cvssScore: null,
+            cvssScore: $score,
             cvssVector: $vector,
             cvssVersion: $version,
             cvssSeverity: $severity,
@@ -33,19 +34,108 @@ final class OSVRecordParser implements SourceRecordParser
         );
     }
 
-    private function extractCvss(array $severityBlocks): array
+    /**
+     * @param  array<string, mixed>  $rawPayload
+     * @return array{0: ?float, 1: ?string, 2: ?string, 3: ?string} [score, vector, version, severity]
+     */
+    private function extractCvss(array $rawPayload): array
     {
-        foreach ($severityBlocks as $block) {
-            $type = $block['type'] ?? null;
+        $best = null;
 
-            if ($type === 'CVSS_V3' || $type === 'CVSS_V2') {
-                return [$block['score'] ?? null, $type === 'CVSS_V3' ? '3.x' : '2.0', null];
+        foreach ($this->vectorCandidates($rawPayload) as $candidate) {
+            $parsed = Cvss::fromVector($candidate);
+
+            if ($parsed !== null && ($best === null || $this->outranks($parsed, $best))) {
+                $best = $parsed;
             }
         }
 
-        return [null, null, null];
+        if ($best !== null) {
+            return [
+                $best->baseScore,
+                $best->vector,
+                $best->version,
+                $best->baseSeverity ?? $this->qualitativeSeverity($rawPayload),
+            ];
+        }
+
+        return [null, null, null, $this->qualitativeSeverity($rawPayload)];
     }
 
+    /**
+     * @param  array<string, mixed>  $rawPayload
+     * @return list<string>
+     */
+    private function vectorCandidates(array $rawPayload): array
+    {
+        $candidates = [];
+
+        $harvest = function (array $node) use (&$candidates): void {
+            foreach ($node['severity'] ?? [] as $entry) {
+                if (is_array($entry) && isset($entry['score']) && is_string($entry['score'])) {
+                    $candidates[] = $entry['score'];
+                }
+            }
+
+            $vectorString = $node['database_specific']['cvss']['vector_string'] ?? null;
+
+            if (is_string($vectorString)) {
+                $candidates[] = $vectorString;
+            }
+        };
+
+        $harvest($rawPayload);
+
+        foreach ($rawPayload['affected'] ?? [] as $affected) {
+            if (is_array($affected)) {
+                $harvest($affected);
+            }
+        }
+
+        return $candidates;
+    }
+
+    private function outranks(Cvss $candidate, Cvss $current): bool
+    {
+        $rank = fn (Cvss $c): array => [
+            $c->baseScore !== null ? 1 : 0,
+            (float) $c->version,
+            $c->baseScore ?? -1.0,
+        ];
+
+        return ($rank($candidate) <=> $rank($current)) > 0;
+    }
+
+    /**
+     * @param  array<string, mixed>  $rawPayload
+     */
+    private function qualitativeSeverity(array $rawPayload): ?string
+    {
+        $nodes = [$rawPayload];
+
+        foreach ($rawPayload['affected'] ?? [] as $affected) {
+            if (is_array($affected)) {
+                $nodes[] = $affected;
+            }
+        }
+
+        foreach ($nodes as $node) {
+            foreach (['database_specific', 'ecosystem_specific'] as $key) {
+                $label = $node[$key]['severity'] ?? null;
+
+                if (is_string($label) && $label !== '') {
+                    return ucfirst(strtolower($label));
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $references
+     * @return array<int, array{url: string, tags: array<int, string>}>
+     */
     private function extractReferences(array $references): array
     {
         return array_map(
