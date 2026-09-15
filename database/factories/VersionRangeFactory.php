@@ -22,6 +22,7 @@ class VersionRangeFactory extends Factory
             'format_id' => Format::factory(),
             'type' => 'a',
             'ecosystem' => null,
+            'package_manager' => null,
             'vendor' => fake()->word(),
             'product' => fake()->word(),
             'version_incl_start' => '1.0.0',

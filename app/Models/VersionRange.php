@@ -14,6 +14,7 @@ use Illuminate\Support\Carbon;
  * @property int $format_id
  * @property string $type
  * @property string|null $ecosystem
+ * @property string|null $package_manager
  * @property string|null $vendor
  * @property string|null $product
  * @property string|null $version_incl_start

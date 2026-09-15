@@ -67,6 +67,7 @@ final class NVDRangeParser implements RangeParser
         return new VersionRangeData(
             type: $this->mapPart($cpe->part),
             ecosystem: null,
+            packageManager: null,
             vendor: $this->attribute($cpe->vendor),
             product: $this->attribute($cpe->product),
             versionInclStart: $startIncl,

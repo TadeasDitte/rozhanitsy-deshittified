@@ -97,6 +97,46 @@ test('reads the vendor from a purl namespace', function () {
     expect($ranges[0]->raw)->toContain('pkg:composer/monolog/monolog');
 });
 
+test('reads the package manager from the purl type', function () {
+    $ranges = (new OSVRangeParser)->parse([[
+        'package' => [
+            'ecosystem' => 'Debian',
+            'name' => 'nginx',
+            'purl' => 'pkg:deb/debian/nginx',
+        ],
+        'ranges' => [
+            ['type' => 'ECOSYSTEM', 'events' => [['introduced' => '0'], ['fixed' => '1.18.0']]],
+        ],
+    ]]);
+
+    expect($ranges[0]->packageManager)->toBe('deb');
+    expect($ranges[0]->ecosystem)->toBe('Debian');
+});
+
+test('reads the package manager from a purl with no namespace', function () {
+    $ranges = (new OSVRangeParser)->parse([[
+        'package' => [
+            'ecosystem' => 'npm',
+            'name' => 'left-pad',
+            'purl' => 'pkg:npm/left-pad',
+        ],
+        'ranges' => [
+            ['type' => 'SEMVER', 'events' => [['introduced' => '0'], ['fixed' => '1.0.0']]],
+        ],
+    ]]);
+
+    expect($ranges[0]->packageManager)->toBe('npm');
+    expect($ranges[0]->vendor)->toBeNull();
+});
+
+test('leaves the package manager null when there is no purl', function () {
+    $ranges = (new OSVRangeParser)->parse(osvAffected([
+        ['type' => 'SEMVER', 'events' => [['introduced' => '0'], ['fixed' => '1.2.3']]],
+    ]));
+
+    expect($ranges[0]->packageManager)->toBeNull();
+});
+
 test('skips an affected entry that has only a versions list and no ranges', function () {
     $ranges = (new OSVRangeParser)->parse([[
         'package' => ['ecosystem' => 'PyPI', 'name' => 'django'],

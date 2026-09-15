@@ -4,12 +4,6 @@ namespace App\Ingestion\Parsers;
 
 use App\Ingestion\VersionRangeData;
 
-/**
- * Expands OSV `affected[]` entries (PURL packages + version events) into version ranges.
- *
- * v1 handles `SEMVER` and `ECOSYSTEM` ranges; `GIT` ranges and `affected`
- * entries that carry only a `versions[]` list (no `ranges`) are skipped.
- */
 final class OSVRangeParser implements RangeParser
 {
     public function parse(array $rawRanges): array
@@ -21,6 +15,7 @@ final class OSVRangeParser implements RangeParser
             $ecosystem = $this->stringOrNull($package['ecosystem'] ?? null);
             $product = $this->stringOrNull($package['name'] ?? null);
             $purl = $this->stringOrNull($package['purl'] ?? null);
+            $packageManager = $purl !== null ? $this->packageManagerFromPurl($purl) : null;
             $vendor = $purl !== null ? $this->vendorFromPurl($purl) : null;
 
             foreach ($affected['ranges'] ?? [] as $range) {
@@ -36,6 +31,7 @@ final class OSVRangeParser implements RangeParser
                     $ranges[] = new VersionRangeData(
                         type: 'a',
                         ecosystem: $ecosystem,
+                        packageManager: $packageManager,
                         vendor: $vendor,
                         product: $product,
                         versionInclStart: $interval['introduced'],
@@ -53,8 +49,6 @@ final class OSVRangeParser implements RangeParser
     }
 
     /**
-     * Collapse an OSV `events` list into closed/open intervals.
-     *
      * @param  array<int, array<string, mixed>>  $events
      * @return list<array{introduced: ?string, fixed: ?string, last_affected: ?string}>
      */
@@ -108,9 +102,7 @@ final class OSVRangeParser implements RangeParser
 
     private function vendorFromPurl(string $purl): ?string
     {
-        $body = preg_replace('#^pkg:#', '', $purl) ?? $purl;
-        $body = preg_split('/[@?#]/', $body)[0] ?? $body;
-        $segments = array_values(array_filter(explode('/', $body), static fn (string $s): bool => $s !== ''));
+        $segments = $this->purlSegments($purl);
 
         if (count($segments) < 3) {
             return null;
@@ -119,6 +111,22 @@ final class OSVRangeParser implements RangeParser
         $namespace = implode('/', array_slice($segments, 1, count($segments) - 2));
 
         return rawurldecode($namespace);
+    }
+
+    private function packageManagerFromPurl(string $purl): ?string
+    {
+        return $this->purlSegments($purl)[0] ?? null;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function purlSegments(string $purl): array
+    {
+        $body = preg_replace('#^pkg:#', '', $purl) ?? $purl;
+        $body = preg_split('/[@?#]/', $body)[0] ?? $body;
+
+        return array_values(array_filter(explode('/', $body), static fn (string $s): bool => $s !== ''));
     }
 
     private function stringOrNull(mixed $value): ?string

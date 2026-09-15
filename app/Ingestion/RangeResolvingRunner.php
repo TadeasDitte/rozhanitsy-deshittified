@@ -48,6 +48,7 @@ final class RangeResolvingRunner
                         'format_id' => $this->formatId,
                         'type' => $range->type,
                         'ecosystem' => $range->ecosystem,
+                        'package_manager' => $range->packageManager,
                         'vendor' => $range->vendor,
                         'product' => $range->product,
                         'version_incl_start' => $range->versionInclStart,

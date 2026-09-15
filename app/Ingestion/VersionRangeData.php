@@ -10,6 +10,7 @@ final readonly class VersionRangeData
     public function __construct(
         public string $type,
         public ?string $ecosystem,
+        public ?string $packageManager,
         public ?string $vendor,
         public ?string $product,
         public ?string $versionInclStart,

@@ -17,6 +17,7 @@ return new class extends Migration
             $table->foreignId('format_id')->constrained('formats');
             $table->enum('type', ['a', 'h', 'o', 'u'])->default('u');
             $table->string('ecosystem')->nullable();
+            $table->string('package_manager')->nullable();
             $table->string('vendor')->nullable();
             $table->string('product')->nullable();
             $table->string('version_incl_start')->nullable();

@@ -97,6 +97,7 @@ test('expands OSV PURL ranges into version_ranges', function () {
     $npm = $record->versionRanges()->where('ecosystem', 'npm')->first();
     expect($npm->format_id)->toBe(Format::where('name', 'purl')->value('id'));
     expect($npm->type)->toBe('a');
+    expect($npm->package_manager)->toBe('npm');
     expect($npm->product)->toBe('left-pad');
     expect($npm->version_incl_start)->toBeNull();
     expect($npm->version_excl_end)->toBe('1.3.0');
