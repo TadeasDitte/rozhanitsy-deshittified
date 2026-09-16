@@ -23,7 +23,7 @@ final class OSVRecordParser implements SourceRecordParser
             cvssVector: $vector,
             cvssVersion: $version,
             cvssSeverity: $severity,
-            description: $rawPayload['details'] ?? $rawPayload['summary'] ?? null,
+            description: $this->extractDescription($rawPayload),
             publishedAt: $this->parseDate($rawPayload['published'] ?? null),
             lastModifiedAt: $this->parseDate($rawPayload['modified'] ?? null),
             weaknesses: $rawPayload['database_specific']['cwe_ids'] ?? [],
@@ -147,5 +147,29 @@ final class OSVRecordParser implements SourceRecordParser
     private function parseDate(?string $value): ?Carbon
     {
         return $value !== null ? Carbon::parse($value) : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $rawPayload
+     */
+    private function extractDescription(array $rawPayload): ?string
+    {
+        return $this->normalizeDescription($rawPayload['details'] ?? null)
+            ?? $this->normalizeDescription($rawPayload['summary'] ?? null);
+    }
+
+    private function normalizeDescription(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $trimmed = trim($value);
+
+        if ($trimmed === '' || preg_match('/^[A-Za-z][A-Za-z \'\/-]*:$/', $trimmed) === 1) {
+            return null;
+        }
+
+        return $value;
     }
 }

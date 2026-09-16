@@ -111,3 +111,21 @@ test('still parses the non-severity fields', function () {
     expect($parsed->description)->toBe('Full details here');
     expect($parsed->aliases)->toBe(['CVE-2026-1']);
 });
+
+test('treats a bare section-label details value as no description', function () {
+    $parsed = (new OSVRecordParser)->parseOne(osvPayload([
+        'details' => 'Summary:',
+        'summary' => null,
+    ]));
+
+    expect($parsed->description)->toBeNull();
+});
+
+test('falls back to summary when details is a bare label', function () {
+    $parsed = (new OSVRecordParser)->parseOne(osvPayload([
+        'details' => 'Summary:',
+        'summary' => 'Real summary text',
+    ]));
+
+    expect($parsed->description)->toBe('Real summary text');
+});
